@@ -1,4 +1,4 @@
-name: Build macOS (firmado y notarizado)
+name: Build macOS
 
 on:
   workflow_dispatch:
@@ -18,15 +18,22 @@ jobs:
 
       - run: npm install
 
-      # Firma y notarización: requiere los secretos configurados en GitHub (ver README).
-      - name: Compilar, firmar y notarizar
+      - name: Compilar (firmado solo si hay certificado)
         env:
           CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run build:mac
+        run: |
+          if [ -n "$CSC_LINK" ]; then
+            echo "Certificado encontrado: firmando y notarizando"
+            npm run build:mac
+          else
+            echo "Sin certificado: compilando sin firma"
+            unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+            CSC_IDENTITY_AUTO_DISCOVERY=false npm run build:mac
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
